@@ -66,10 +66,16 @@ def distance_limited_precedence(x, distribution, precedents, outcomes, k, max_di
 def constant_func(x,c):
 	return c
 
-
 def scatter_cases(history):
 	cases = [e[0] for e in history]
 	plt.scatter([e[0] for e in cases],[e[1] for e in cases])
+	plt.show()
+
+def scatter_cases_with_outcomes(history):
+	positive_cases = [e[0] for e in history if e[2]]
+	negative_cases = [e[0] for e in history if not e[2]]
+	plt.scatter([e[0] for e in positive_cases],[e[1] for e in positive_cases])
+	plt.scatter([e[0] for e in negative_cases],[e[1] for e in negative_cases])
 	plt.show()
 
 def loss(history, judge_distribution):
@@ -110,7 +116,8 @@ precedent_cases, precedent_outcomes, history = run(decision_rule, judge_distribu
 h_outcomes = [e[1] for e in history] 
 h_set_precedent = [e[2] for e in history]
 
-#scatter_cases(history)
+# scatter_cases(history)
+scatter_cases_with_outcomes(history)
 loss = loss(history, judge_distribution)
 
 print("Average loss per case:")

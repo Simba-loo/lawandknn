@@ -12,7 +12,7 @@ def run(decision_rule, judge_distribution,case_sampling_func, precedent_cases, p
 	for i in range(N):
 		# sample a case 
 		x = case_sampling_func()
-		decision, set_precedent, precedents, outcomes = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
+		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
 		history.append((x,decision, set_precedent))
 	return(precedent_cases, precedent_outcomes, history)
 

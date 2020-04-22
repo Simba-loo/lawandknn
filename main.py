@@ -2,6 +2,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 import pdb
+from collections import namedtuple
+
+HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
 
 def find_knn(all_cases, target_case, k):
 	# returns nearest neighbors and distances
@@ -67,9 +70,9 @@ def case(entry):
 def scatter_cases_with_outcomes(history):
 	# positive_cases = [e[0] for e in history if e[1]]
 	# negative_cases = [e[0] for e in history if not e[1]]
-	colors = ["green" if is_positive(e) else "red" for e in history]
-	edgecolors = ["black" if is_precedent(e) else "none" for e in history]
-	plt.scatter([case(e)[0] for e in history], [case(e)[1] for e in history], 
+	colors = ["green" if e.decision else "red" for e in history]
+	edgecolors = ["black" if e.set_precedent else "none" for e in history]
+	plt.scatter([e.case[0] for e in history], [e.case[1] for e in history], 
 		c = colors, edgecolors=edgecolors)
 	# plt.scatter([c[0] for c in positive_cases],[c[1] for c in positive_cases],
 	# 	c = "green")
@@ -119,7 +122,8 @@ def run(decision_rule, judge_distribution, case_sampling_func, N):
 		# sample a case 
 		x = case_sampling_func()
 		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
-		history.append((x,decision, set_precedent))
+		# history.append((x,decision, set_precedent))
+		history.append(HistoryEntry(x, decision, set_precedent))
 	return history
 
 

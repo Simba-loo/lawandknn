@@ -58,15 +58,6 @@ def scatter_cases(history):
 	plt.scatter([e[0] for e in cases],[e[1] for e in cases])
 	plt.show()
 
-def is_positive(entry):
-	return entry[1]
-
-def is_precedent(entry):
-	return entry[2]
-
-def case(entry):
-	return entry[0]
-
 def scatter_cases_with_outcomes(history):
 	# positive_cases = [e[0] for e in history if e[1]]
 	# negative_cases = [e[0] for e in history if not e[1]]

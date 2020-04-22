@@ -9,7 +9,7 @@ import pdb
 def run(decision_rule, judge_distribution,case_sampling_func, precedent_cases, precedent_outcomes, N):
 	# run the specified decition process for N
 	history = []
-	for i in range(N):
+	for _ in range(N):
 		# sample a case 
 		x = case_sampling_func()
 		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
@@ -60,7 +60,7 @@ def distance_limited_precedence(x, distribution, precedents, outcomes, k, max_di
 		k_decisions = [outcomes[tuple(e)] for e in knn]
 		# majority rule
 		decision = sum(k_decisions)> k/2.0
-	return(decision, set_precedent, precedents, outcomes)
+	return(decision, set_precedent)
 
 # p(x) functions (fraction of judges thinking "yes" for case x)
 def constant_func(x,c):

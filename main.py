@@ -8,18 +8,24 @@ import math
 
 HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
 
-
 def find_knn(all_cases, target_case, k):
 	# returns nearest neighbors and distances
-	nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(all_cases)
-	distances, indices = nbrs.kneighbors([target_case])
+	# note: this entire tree is constructed every time a case is judged.
+	# This is probably the simulation bottleneck.
+	nbrs = build_knn_tree(all_cases, k)
+	return query_knn_tree(nbrs, all_cases, target_case, k)
+
+def build_knn_tree(all_cases, k):
+	return NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(all_cases)
+
+def query_knn_tree(knn_tree, all_cases, target_case, k):
+	distances, indices = knn_tree.kneighbors([target_case])
 	distances = distances[0]
 	indices = indices[0]
 	#pdb.set_trace()
 	knn = (all_cases[i] for i in indices)
 	k_distances = distances[0:k]
 	return(knn,k_distances)
-
 
 def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
@@ -30,11 +36,11 @@ def uniform_sample(d, l, r):
 
 
 # decision rules: output the decision and whether to set precedent
-def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance):
+def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance, knn_tree):
 	# if there are k precedents within max distance, settle case without setting precedent
 	# if there aren't, settle according to judge and 
 	if len(precedents)>k:
-		knn, k_distances = find_knn(precedents, x, k)
+		knn, k_distances = query_knn_tree(knn_tree, precedents, x, k)
 		set_precedent = not np.all(k_distances<max_distance)
 	else: 
 		set_precedent = True
@@ -90,7 +96,7 @@ def loss(history, judge_distribution):
 	average_loss = total_loss*1.0/len(history)
 	return(average_loss)
 
-def run(decision_rule, judge_distribution, case_sampling_func, N):
+def run(decision_rule, k, judge_distribution, case_sampling_func, N):
 	"""
 	Run a simulated legal system.
 
@@ -113,17 +119,21 @@ def run(decision_rule, judge_distribution, case_sampling_func, N):
 	# used for efficient decisions
 	precedent_cases = []
 	precedent_outcomes = {}
+	knn_tree = None
+
 	# run the specified decision process for N
 	history = []
 	for _ in range(N):
 		# sample a case 
 		x = case_sampling_func()
 		# decide it
-		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
+		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes, knn_tree)
 		# update the caches
 		if set_precedent:
 			precedent_cases.append(x)
 			precedent_outcomes[tuple(x)] = decision
+			# fix this!
+			knn_tree = build_knn_tree(precedent_cases, 7)
 		# update the history
 		# history.append((x,decision, set_precedent))
 		history.append(HistoryEntry(x, decision, set_precedent))
@@ -155,9 +165,10 @@ print("N where density favors judging via precedent = " +
 
 
 history = run(N=N,
+							k = k,
 							judge_distribution=judge_distribution,
 							case_sampling_func = lambda: uniform_sample(d, l, r),
-							decision_rule = lambda x, judge_distribution, precedents, 						outcomes: distance_limited_precedence(x, judge_distribution, 			precedents, outcomes, k, max_distance)
+							decision_rule = lambda x, judge_distribution, precedents, 						outcomes, knn_tree: distance_limited_precedence(x, judge_distribution, 	precedents, outcomes, k, max_distance, knn_tree)
 )
 
 loss = loss(history, judge_distribution)

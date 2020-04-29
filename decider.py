@@ -8,7 +8,9 @@ class Decider(ABC):
   """Decider represents a decision rule that maintains its own history and state"""
 
   def decide(self, x, judge_distribution):
+    # Separation of responsibilities. First make a decision based on current history / state.
     decision, set_precedent = self.apply_rule(x, judge_distribution)
+    # Then update state to prepare for deciding next case.
     self.update(x, decision, set_precedent)
     return decision, set_precedent
 
@@ -36,6 +38,7 @@ class DistanceLimitedDecider(Decider):
     if set_precedent:
       self.precedents.append(x)
       self.outcomes.append(decision)
+      # Rebuild the knn tree only after setting a precedent.
       self.knn_tree = build_knn_tree(self.precedents, self.k)
 
 
@@ -46,17 +49,20 @@ class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
     self.horizon = horizon
 
   def update(self, x, decision, set_precedent):
+    # Forget precedents set longer than horizon ago.
     if set_precedent and len(self.precedents) > self.horizon:
       self.precedents = self.precedents[-self.horizon:]
       self.outcomes = self.outcomes[-self.horizon:]
+    # Add the latest precedent and rebuild the knn tree.
     super().update(x, decision, set_precedent)
-
 
 
 def find_knn(all_cases, target_case, k):
 	# returns nearest neighbors and distances
 	# note: this entire tree is constructed every time a case is judged.
 	# This is probably the simulation bottleneck.
+  # Would be better to add new cases as they are judged, but sklearn
+  # does not seem to support this.
 	nbrs = build_knn_tree(all_cases, k)
 	return query_knn_tree(nbrs, all_cases, target_case, k)
 
@@ -67,8 +73,6 @@ def query_knn_tree(knn_tree, all_cases, target_case, k):
 	distances, indices = knn_tree.kneighbors([target_case])
 	distances = distances[0]
 	indices = indices[0]
-	#pdb.set_trace()
-	# knn = (all_cases[i] for i in indices)
 	k_distances = distances[0:k]
 	return(indices,k_distances)
 
@@ -82,11 +86,7 @@ def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, 
 	else: 
 		set_precedent = True
 	if set_precedent:
-		# set a new precedent
-		# precedents.append(x)
 		decision = np.random.uniform()<judge_distribution(x)
-		# x_tuple = tuple(x)
-		# outcomes[x_tuple] = decision
 	else:
 		# get decisions from nearest precedents
 		k_decisions = [outcomes[index] for index in indices]

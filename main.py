@@ -10,7 +10,6 @@ from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
 HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
 
 
-
 def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
 	x = np.zeros(d)

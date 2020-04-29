@@ -4,28 +4,12 @@ from sklearn.neighbors import NearestNeighbors
 import pdb
 from collections import namedtuple
 import math
+from decider import DistanceLimitedDecider
 
 
 HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
 
-def find_knn(all_cases, target_case, k):
-	# returns nearest neighbors and distances
-	# note: this entire tree is constructed every time a case is judged.
-	# This is probably the simulation bottleneck.
-	nbrs = build_knn_tree(all_cases, k)
-	return query_knn_tree(nbrs, all_cases, target_case, k)
 
-def build_knn_tree(all_cases, k):
-	return NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(all_cases)
-
-def query_knn_tree(knn_tree, all_cases, target_case, k):
-	distances, indices = knn_tree.kneighbors([target_case])
-	distances = distances[0]
-	indices = indices[0]
-	#pdb.set_trace()
-	knn = (all_cases[i] for i in indices)
-	k_distances = distances[0:k]
-	return(knn,k_distances)
 
 def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
@@ -33,29 +17,6 @@ def uniform_sample(d, l, r):
 	for i in range(d):
 		x[i] = l+(r-l)*np.random.uniform()
 	return(x)
-
-
-# decision rules: output the decision and whether to set precedent
-def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance, knn_tree):
-	# if there are k precedents within max distance, settle case without setting precedent
-	# if there aren't, settle according to judge and 
-	if len(precedents)>k:
-		knn, k_distances = query_knn_tree(knn_tree, precedents, x, k)
-		set_precedent = not np.all(k_distances<max_distance)
-	else: 
-		set_precedent = True
-	if set_precedent:
-		# set a new precedent
-		# precedents.append(x)
-		decision = np.random.uniform()<judge_distribution(x)
-		# x_tuple = tuple(x)
-		# outcomes[x_tuple] = decision
-	else:
-		# get decisions from nearest precedents
-		k_decisions = [outcomes[tuple(e)] for e in knn]
-		# majority rule
-		decision = sum(k_decisions)> k/2.0
-	return(decision, set_precedent)
 
 
 # p(x) functions (fraction of judges thinking "yes" for case x)
@@ -96,7 +57,7 @@ def loss(history, judge_distribution):
 	average_loss = total_loss*1.0/len(history)
 	return(average_loss)
 
-def run(decision_rule, k, judge_distribution, case_sampling_func, N):
+def run(decider, judge_distribution, case_sampling_func, N):
 	"""
 	Run a simulated legal system.
 
@@ -114,12 +75,6 @@ def run(decision_rule, k, judge_distribution, case_sampling_func, N):
 	decision_rule (Map D -> Pr_J(1|.) -> precedents -> outcomes -> {0, 1} * bool):
 		Represents the decision rule R.
 	"""
-	
-	# Cache of the precedent cases and their outcomes (redundant with history)
-	# used for efficient decisions
-	precedent_cases = []
-	precedent_outcomes = {}
-	knn_tree = None
 
 	# run the specified decision process for N
 	history = []
@@ -127,13 +82,7 @@ def run(decision_rule, k, judge_distribution, case_sampling_func, N):
 		# sample a case 
 		x = case_sampling_func()
 		# decide it
-		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes, knn_tree)
-		# update the caches
-		if set_precedent:
-			precedent_cases.append(x)
-			precedent_outcomes[tuple(x)] = decision
-			# fix this!
-			knn_tree = build_knn_tree(precedent_cases, 7)
+		decision, set_precedent = decider.decide(x, judge_distribution)
 		# update the history
 		# history.append((x,decision, set_precedent))
 		history.append(HistoryEntry(x, decision, set_precedent))
@@ -163,12 +112,10 @@ print("expected number of neighbors of last case judged = " + str(number_in_maxd
 print("N where density favors judging via precedent = " + 
 	str(N_at_which_precedent_is_as_likely_as_not))
 
-
 history = run(N=N,
-							k = k,
 							judge_distribution=judge_distribution,
 							case_sampling_func = lambda: uniform_sample(d, l, r),
-							decision_rule = lambda x, judge_distribution, precedents, 						outcomes, knn_tree: distance_limited_precedence(x, judge_distribution, 	precedents, outcomes, k, max_distance, knn_tree)
+							decider = DistanceLimitedDecider(k, max_distance)
 )
 
 loss = loss(history, judge_distribution)

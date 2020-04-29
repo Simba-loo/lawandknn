@@ -25,7 +25,7 @@ class DistanceLimitedDecider(Decider):
     self.k = k
     self.max_distance = max_distance
     self.precedents = []
-    self.outcomes = {}
+    self.outcomes = []
     self.knn_tree = None
 
   def apply_rule(self, x, judge_distribution):
@@ -35,11 +35,22 @@ class DistanceLimitedDecider(Decider):
   def update(self, x, decision, set_precedent):
     if set_precedent:
       self.precedents.append(x)
-      self.outcomes[tuple(x)] = decision
+      self.outcomes.append(decision)
       self.knn_tree = build_knn_tree(self.precedents, self.k)
 
-class DistanceLimitedForgetfulDecider(Decider):
-  pass
+
+class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
+  
+  def __init__(self, k, max_distance, horizon):
+    super().__init__(k, max_distance)
+    self.horizon = horizon
+
+  def update(self, x, decision, set_precedent):
+    if set_precedent and len(self.precedents) > self.horizon:
+      self.precedents = self.precedents[-self.horizon:]
+      self.outcomes = self.outcomes[-self.horizon:]
+    super().update(x, decision, set_precedent)
+
 
 
 def find_knn(all_cases, target_case, k):
@@ -57,16 +68,16 @@ def query_knn_tree(knn_tree, all_cases, target_case, k):
 	distances = distances[0]
 	indices = indices[0]
 	#pdb.set_trace()
-	knn = (all_cases[i] for i in indices)
+	# knn = (all_cases[i] for i in indices)
 	k_distances = distances[0:k]
-	return(knn,k_distances)
+	return(indices,k_distances)
 
 # decision rules: output the decision and whether to set precedent
 def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance, knn_tree):
 	# if there are k precedents within max distance, settle case without setting precedent
 	# if there aren't, settle according to judge and 
 	if len(precedents)>k:
-		knn, k_distances = query_knn_tree(knn_tree, precedents, x, k)
+		indices, k_distances = query_knn_tree(knn_tree, precedents, x, k)
 		set_precedent = not np.all(k_distances<max_distance)
 	else: 
 		set_precedent = True
@@ -78,7 +89,7 @@ def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, 
 		# outcomes[x_tuple] = decision
 	else:
 		# get decisions from nearest precedents
-		k_decisions = [outcomes[tuple(e)] for e in knn]
+		k_decisions = [outcomes[index] for index in indices]
 		# majority rule
 		decision = sum(k_decisions)> k/2.0
 	return(decision, set_precedent)

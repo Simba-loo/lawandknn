@@ -4,7 +4,7 @@ from sklearn.neighbors import NearestNeighbors
 import pdb
 from collections import namedtuple
 import math
-from decider import DistanceLimitedDecider
+from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
 
 
 HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
@@ -115,7 +115,8 @@ print("N where density favors judging via precedent = " +
 history = run(N=N,
 							judge_distribution=judge_distribution,
 							case_sampling_func = lambda: uniform_sample(d, l, r),
-							decider = DistanceLimitedDecider(k, max_distance)
+							# decider = DistanceLimitedDecider(k, max_distance)
+							decider = DistanceLimitedForgetfulDecider(k, max_distance, 1000)
 )
 
 loss = loss(history, judge_distribution)

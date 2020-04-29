@@ -23,9 +23,9 @@ def query_knn_tree(knn_tree, all_cases, target_case, k):
 	distances = distances[0]
 	indices = indices[0]
 	#pdb.set_trace()
-	knn = (all_cases[i] for i in indices)
+	# knn = (all_cases[i] for i in indices)
 	k_distances = distances[0:k]
-	return(knn,k_distances)
+	return(indices,k_distances)
 
 def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
@@ -36,12 +36,17 @@ def uniform_sample(d, l, r):
 
 
 # decision rules: output the decision and whether to set precedent
-def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance, knn_tree):
+def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance, t, knn_tree):
 	# if there are k precedents within max distance, settle case without setting precedent
-	# if there aren't, settle according to judge and 
+	# if there aren't, settle according to judge and 		
 	if len(precedents)>k:
-		knn, k_distances = query_knn_tree(knn_tree, precedents, x, k)
-		set_precedent = not np.all(k_distances<max_distance)
+		neighbor_indices, k_distances = query_knn_tree(knn_tree, precedents, x, k)
+		sufficiently_close = np.all(k_distances<max_distance)
+		half_life = 1000
+		weights = {index: math.pow(2, (index - t) / half_life) for index in neighbor_indices}
+		total_weight = sum(weights.values())
+		sufficiently_fresh = total_weight > k / 2
+		set_precedent = not (sufficiently_close and sufficiently_fresh)
 	else: 
 		set_precedent = True
 	if set_precedent:
@@ -52,9 +57,13 @@ def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, 
 		# outcomes[x_tuple] = decision
 	else:
 		# get decisions from nearest precedents
-		k_decisions = [outcomes[tuple(e)] for e in knn]
+		# k_decisions = [outcomes[tuple(e)] for e in knn]
+		half_life = 3000
+		weights = {index: math.pow(2, (index - t) / half_life) for index in neighbor_indices}
+		total_weight = sum(weights.values())
+		k_weighted_decisions = [weights[index] * outcomes[tuple(precedents[index])] for index in neighbor_indices]
 		# majority rule
-		decision = sum(k_decisions)> k/2.0
+		decision = sum(k_weighted_decisions) > total_weight/2.0
 	return(decision, set_precedent)
 
 
@@ -123,11 +132,11 @@ def run(decision_rule, k, judge_distribution, case_sampling_func, N):
 
 	# run the specified decision process for N
 	history = []
-	for _ in range(N):
+	for t in range(N):
 		# sample a case 
 		x = case_sampling_func()
 		# decide it
-		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes, knn_tree)
+		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes, t, knn_tree)
 		# update the caches
 		if set_precedent:
 			precedent_cases.append(x)
@@ -147,7 +156,7 @@ k = 7 # make it odd to avoid draws
 # distance within which to look for precedents
 # max_distance = 0.05 
 max_distance = 0.05
-judge_distribution = lambda x: constant_func(x,0.9)
+judge_distribution = lambda x: constant_func(x,0.7)
 N = 10000
 
 volume = (l - r) ** d
@@ -168,7 +177,7 @@ history = run(N=N,
 							k = k,
 							judge_distribution=judge_distribution,
 							case_sampling_func = lambda: uniform_sample(d, l, r),
-							decision_rule = lambda x, judge_distribution, precedents, 						outcomes, knn_tree: distance_limited_precedence(x, judge_distribution, 	precedents, outcomes, k, max_distance, knn_tree)
+							decision_rule = lambda x, judge_distribution, precedents, 						outcomes, t, knn_tree: distance_limited_precedence(x, judge_distribution, 	precedents, outcomes, k, max_distance, t, knn_tree)
 )
 
 loss = loss(history, judge_distribution)

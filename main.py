@@ -21,7 +21,7 @@ def find_knn(all_cases, target_case, k):
 	return(knn,k_distances)
 
 
-def uniform_sample(d, l,r):
+def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
 	x = np.zeros(d)
 	for i in range(d):
@@ -30,7 +30,7 @@ def uniform_sample(d, l,r):
 
 
 # decision rules: output the decision and whether to set precedent
-def distance_limited_precedence(x, distribution, precedents, outcomes, k, max_distance):
+def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, max_distance):
 	# if there are k precedents within max distance, settle case without setting precedent
 	# if there aren't, settle according to judge and 
 	if len(precedents)>k:
@@ -40,10 +40,10 @@ def distance_limited_precedence(x, distribution, precedents, outcomes, k, max_di
 		set_precedent = True
 	if set_precedent:
 		# set a new precedent
-		precedents.append(x)
-		decision = np.random.uniform()<distribution(x)
-		x_tuple = tuple(x)
-		outcomes[x_tuple] = decision
+		# precedents.append(x)
+		decision = np.random.uniform()<judge_distribution(x)
+		# x_tuple = tuple(x)
+		# outcomes[x_tuple] = decision
 	else:
 		# get decisions from nearest precedents
 		k_decisions = [outcomes[tuple(e)] for e in knn]
@@ -90,7 +90,6 @@ def loss(history, judge_distribution):
 	average_loss = total_loss*1.0/len(history)
 	return(average_loss)
 
-
 def run(decision_rule, judge_distribution, case_sampling_func, N):
 	"""
 	Run a simulated legal system.
@@ -109,16 +108,23 @@ def run(decision_rule, judge_distribution, case_sampling_func, N):
 	decision_rule (Map D -> Pr_J(1|.) -> precedents -> outcomes -> {0, 1} * bool):
 		Represents the decision rule R.
 	"""
-	# initialize precedence data
-  # case -> outcome dictinary
+	
+	# Cache of the precedent cases and their outcomes (redundant with history)
+	# used for efficient decisions
 	precedent_cases = []
 	precedent_outcomes = {}
-	# run the specified decition process for N
+	# run the specified decision process for N
 	history = []
 	for _ in range(N):
 		# sample a case 
 		x = case_sampling_func()
+		# decide it
 		decision, set_precedent = decision_rule(x, judge_distribution, precedent_cases, precedent_outcomes)
+		# update the caches
+		if set_precedent:
+			precedent_cases.append(x)
+			precedent_outcomes[tuple(x)] = decision
+		# update the history
 		# history.append((x,decision, set_precedent))
 		history.append(HistoryEntry(x, decision, set_precedent))
 	return history
@@ -131,7 +137,7 @@ k = 7 # make it odd to avoid draws
 # distance within which to look for precedents
 # max_distance = 0.05 
 max_distance = 0.05
-judge_distribution = lambda x: constant_func(x,0.7)
+judge_distribution = lambda x: constant_func(x,0.9)
 N = 10000
 
 volume = (l - r) ** d

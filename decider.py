@@ -69,6 +69,9 @@ class DistanceLimitedTimedDecider(DistanceLimitedDecider):
       self.timestamps.append(self.current_time)
 
 class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
+  """
+  Old precedents disappear randomly with a half life of half_life.
+  """
   def __init__(self, k, max_distance, half_life, dropout_interval):
     super().__init__(k, max_distance)
     self.half_life = half_life

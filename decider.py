@@ -56,6 +56,48 @@ class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
     # Add the latest precedent and rebuild the knn tree.
     super().update(x, decision, set_precedent)
 
+class DistanceLimitedTimedDecider(DistanceLimitedDecider):
+  def __init__(self, k, max_distance):
+    super().__init__(k, max_distance)
+    self.current_time = 0
+    self.timestamps = []
+
+  def update(self, x, decision, set_precedent):
+    self.current_time += 1
+    super().update(x, decision, set_precedent)
+    if set_precedent:
+      self.timestamps.append(self.current_time)
+
+class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
+  def __init__(self, k, max_distance, half_life, dropout_interval):
+    super().__init__(k, max_distance)
+    self.half_life = half_life
+    self.dropout_interval = dropout_interval
+
+  def update(self, x, decision, set_precedent):
+    if self.current_time % self.dropout_interval == 0:
+      surviving_indices = self.get_surviving_indices()
+      self.precedents = self.select_surviving(self.precedents,        surviving_indices)
+      self.outcomes = self.select_surviving(self.outcomes, surviving_indices)
+      self.timestamps = self.select_surviving(self.timestamps, surviving_indices)
+      if len(self.precedents) > 0:
+        self.knn_tree = build_knn_tree(self.precedents, self.k)
+    super().update(x, decision, set_precedent)
+  
+  def get_surviving_indices(self):
+    np_timestamps = np.asarray(self.timestamps)
+    # lifetimes = self.current_time - np_timestamps
+    decay_probabilities = np.ones(np_timestamps.shape) - np.exp2(-self.dropout_interval / self.half_life)
+    surviving_indices = np.random.uniform(size = np_timestamps.shape) >  decay_probabilities
+    return surviving_indices
+
+  @staticmethod
+  def select_surviving(lst, surviving_indices):
+    np_lst = np.asarray(lst)
+    np_select = np_lst[surviving_indices]
+    return list(np_select)
+
+
 
 def find_knn(all_cases, target_case, k):
 	# returns nearest neighbors and distances

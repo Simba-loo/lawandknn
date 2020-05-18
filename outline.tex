@@ -1,0 +1,137 @@
+%
+% This is the LaTeX template file for lecture notes for CS294-8,
+% Computational Biology for Computer Scientists.  When preparing 
+% LaTeX notes for this class, please use this template.
+%
+% To familiarize yourself with this template, the body contains
+% some examples of its use.  Look them over.  Then you can
+% run LaTeX on this file.  After you have LaTeXed this file then
+% you can look over the result either by printing it out with
+% dvips or using xdvi.
+%
+% This template is based on the template for Prof. Sinclair's CS 270.
+
+\documentclass{article}
+\usepackage{graphics}
+\setlength{\oddsidemargin}{0.25 in}
+\setlength{\evensidemargin}{-0.25 in}
+\setlength{\topmargin}{-0.6 in}
+\setlength{\textwidth}{6.5 in}
+\setlength{\textheight}{8.5 in}
+\setlength{\headsep}{0.75 in}
+\setlength{\parindent}{0 in}
+\setlength{\parskip}{0.1 in}
+
+\usepackage[ruled]{algorithm2e} % For algorithms
+\renewcommand{\algorithmcfname}{ALGORITHM}
+\SetAlFnt{\small}
+\SetAlCapFnt{\small}
+\SetAlCapNameFnt{\small}
+\SetAlCapHSkip{0pt}
+\IncMargin{-\parindent}
+
+
+%\documentclass{llncs}
+%\usepackage{llncsdoc}
+
+%% ==== packages =====
+%%\usepackage{latexsym}
+\usepackage{amsmath,amssymb,enumitem,dsfont,bm,url,graphicx,comment,mathtools}
+%\usepackage{cite}
+%\let\proof\relax
+%\let\endproof\relax
+\usepackage{amsthm}
+%
+%\usepackage{color}
+%
+%\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{algorithmic}% http://ctan.org/pkg/algorithms
+%\renewcommand{\algorithmicrequire}{\textbf{Inputs:}}
+%\renewcommand{\algorithmicensure}{\textbf{Outputs:}}
+%\usepackage{tikz}
+%\setlength{\intextsep}{1\baselineskip}
+%
+%
+\def\EE{{\mathbb{E}}}
+\def\PP{{\mathbb{P}}}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert} %
+\DeclarePairedDelimiter{\brk}{[}{]}
+\DeclarePairedDelimiter{\crl}{\{}{\}}
+\DeclarePairedDelimiter{\prn}{(}{)}
+
+\newcommand{\nc}{\newcommand}
+\nc{\nt}{\newtheorem}
+\nt{theorem}{Theorem}[section]
+\nt{cor}[theorem]{Corollary}
+\nt{prop}[theorem]{Proposition}
+\nt{lemma}[theorem]{Lemma}
+\nt{conjecture}[theorem]{Conjecture}
+\nt{defn}[theorem]{Definition}
+\begin{document}
+%FILL IN THE RIGHT INFO.
+%\lecture{**LECTURE-NUMBER**}{**DATE**}{**LECTURER**}{**SCRIBE**}
+\title{Law and KNN}
+\date{\vspace{-5ex}}
+\maketitle
+%\footnotetext{These notes are partially based on those of Nigel Mansell.}
+
+% **** YOUR NOTES GO HERE:
+
+% Some general latex examples and examples making use of the
+% macros follow.  
+%**** IN GENERAL, BE BRIEF. LONG SCRIBE NOTES, NO MATTER HOW WELL WRITTEN,
+%**** ARE NEVER READ BY ANYBODY.
+
+\section{Setting}
+
+Let $X\subset R^n$ be a closed connected set of all possible cases, and $p(x): X\rightarrow [0,1]$ the fraction of people who believe the outcome of case $x$ should be $1$ (vs $0$); we assume $p(\cdot)$ is Lipschitz.
+
+Cases $x_t\sim uniform[X]$ arrive at each time $t$ together with an opinion of a randomly sampled person $o_t\in \{0,1\}$, and a decision $d_t$ has to be made on a case at the time of arrival.  The quality of history of decisions $h = \{x_t,d_t\}$ is evaluated by the number of people who disagree with them:
+
+$$L(h) = \sum_{t=1}^\infty e^{-\delta t}|p(x_t) -d_t|,$$
+where $\delta$ is the discount factor. We let $L^*(h)$ be the optimal value of $L(h)$ given sequence $\{x_t\}$, that is value of $L$ when $d_t = [p(x_t)]$, where $[]$ denotes rounding to closest integer.
+
+\section{Algorithms}
+
+\subsection{Local precedents}
+
+Inputs: integer $k$, real $D_{max}$.
+
+At every step the algorithm maintains the set of precedents $S$, elements of which are case-decision tuplets $(x,d)$; $S$ is initialized with empty set. For a case $x_t$, if there are at least $k$ precedents within distance $D$ of $x_t$, the decision $d_t$ is made by the majority rule over $k$ nearest precedents to $x_t$. If there are not $k$ precedents within $D$, the decision is set to $d_t = o_t$ and a precedent $(x_t,d_t)$ is added to $S$.
+
+\begin{theorem}
+As $\delta\rightarrow 0,\ k\rightarrow \infty, D\rightarrow 0$, the loss converges to optimal $\frac{L(h)}{L^*(h)}\rightarrow 1$.
+\end{theorem}
+
+\begin{conjecture}
+There exists an algorithm that uses finite memory while achieving the optimality condition above for $\delta \rightarrow ->1$.
+\end{conjecture}
+
+\subsection{Single juror}
+Set $d_t=o_t$.
+
+Generalizes to multiple jurors when there are multiple samples $o_t$ available for a single case.
+
+\subsection{Rulebook}
+
+Eg: As cases arrive, a decision tree is constructed and cases are settled according to that tree
+
+
+
+\section{Questions }
+
+\begin{enumerate}
+\item When do local precedents out-compete single juror?
+\item Is conjecture true?
+\item What's a good algorithm when $p(x)$ changes over time?
+\item (vague) how do costs of all algorithms compare as the dimension of $X$ is increased?
+\item Is there a tractable game-theoretic angle here?
+\end{enumerate}
+
+
+\end{document}
+
+
+
+
+

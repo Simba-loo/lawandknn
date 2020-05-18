@@ -100,6 +100,40 @@ class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
     np_select = np_lst[surviving_indices]
     return list(np_select)
 
+class SuperPrecedentsDecider(Decider):
+
+  def __init__(self, k, max_distance):
+    self.k = k # this is now an tuple
+    self.max_distance = max_distance # this is now an tuple
+    self.precedents = [[],[]] # first list is precedents, second list is super precedents
+    self.outcomes = [[],[]]
+    self.knn_tree = [None,None]
+
+  def apply_rule(self, x, judge_distribution):
+    super_decision, set_super_precedent = distance_limited_precedence(x, judge_distribution, self.precedents[1], self.outcomes[1], self.k[1], self.max_distance[1], self.knn_tree[1])
+    if set_super_precedent: # means not enough superprecedents around, check for regular precedents
+      decision, set_precedent = distance_limited_precedence(x, judge_distribution, self.precedents[0], self.outcomes[0], self.k[0], self.max_distance[0], self.knn_tree[0])
+    else:
+      decision = super_decision
+      set_precedent = 2 # mixing types here, sad. FYI (2==True) evaluates to False in python
+    return decision, set_precedent
+
+  def update(self, x, decision, set_precedent):
+    # if it's a normal precedent
+    if set_precedent==True:
+      self.precedents[0].append(x)
+      self.outcomes[0].append(decision)
+      # Rebuild the knn tree only after setting a precedent.
+      self.knn_tree[0] = build_knn_tree(self.precedents[0], self.k[0])
+    # if it's settled by precedents, make it a super-precedent
+    if set_precedent==False:
+      self.precedents[1].append(x)
+      self.outcomes[1].append(decision)
+      # Rebuild the knn tree only after setting a precedent.
+      self.knn_tree[1]= build_knn_tree(self.precedents[1], self.k[1])
+    # if it's settled by superprecedents, do nothing
+
+
 
 
 def find_knn(all_cases, target_case, k):

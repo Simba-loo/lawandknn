@@ -6,7 +6,8 @@ sys.path.append("..")
 from simulation import run, constant_func, scatter_cases_with_outcomes
 from simulation import uniform_sample, loss
 from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
-from decider import DistanceLimitedDropoutDecider
+from decider import SuperPrecedentsDecider
+import pdb
 
 def main():
   d = 2 # dimension
@@ -37,9 +38,7 @@ def main():
                 case_sampling_func = lambda: uniform_sample(d, l, r),
                 # decider = DistanceLimitedDecider(k, max_distance)
                 # decider = DistanceLimitedDecider(k, max_distance, 1000)
-                decider = DistanceLimitedDropoutDecider(k, max_distance, 
-                    half_life = 10000000,
-                    dropout_interval = 100)
+                decider = SuperPrecedentsDecider([k,k], [max_distance,3*max_distance],)
 
   )
 
@@ -63,9 +62,15 @@ def main():
   # near N_at_which_precedent_is_as_likely_as_not
   # Are real common law systems "saturated" by precedent?
   # Is this problem alleviated by decaying precedents?
-  precedent_indicators = [1 if e.set_precedent else 0 for e in history]
+  precedent_indicators = [1 if e.set_precedent==True else 0 for e in history]
   precedents_set_up_to_t = np.cumsum(np.asarray(precedent_indicators))
   plt.plot(precedents_set_up_to_t)
+  plt.show()
+
+  # this is for super precedents, feel free to comment out
+  super_precedent_indicators = [1 if e.set_precedent==False else 0 for e in history] # False means there wasn't enough super-precedents but enough precedents to settle a case, so a super precedent was added
+  super_precedents_set_up_to_t = np.cumsum(np.asarray(super_precedent_indicators))
+  plt.plot(super_precedents_set_up_to_t)
   plt.show()
 
 if __name__ == "__main__":

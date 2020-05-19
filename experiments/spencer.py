@@ -6,7 +6,8 @@ sys.path.append("..")
 from simulation import run, constant_func, scatter_cases_with_outcomes
 from simulation import uniform_sample, loss
 from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
-from decider import DistanceLimitedDropoutDecider
+from decider import DistanceLimitedDropoutDecider, CaseByCaseDecider
+from decider import SuperPrecedentsDecider
 
 def main():
   d = 2 # dimension
@@ -16,7 +17,15 @@ def main():
   # distance within which to look for precedents
   # max_distance = 0.05 
   max_distance = 0.05
+
   judge_distribution = lambda x: constant_func(x,0.7)
+  # judge_distribution = lambda x: 0.5 + 0.5 * math.sin(2 * math.pi * x[0])
+  # judge_distribution = lambda x: 0.5 + 0.5 * math.sin(4 * math.pi * x[0])
+  # judge_distribution = lambda x: 0.5 + 0.5 * math.sin(8 * math.pi * x[0])
+  # judge_distribution = lambda x: \
+  #     0.5 + 0.5 * math.sin(8 * math.pi * x[0]) + \
+  #           0.5 * math.sin(2 * math.pi * x[0])
+
   N = 10000
 
   volume = (l - r) ** d
@@ -35,13 +44,14 @@ def main():
   history = run(N=N,
                 judge_distribution=judge_distribution,
                 case_sampling_func = lambda: uniform_sample(d, l, r),
-                # decider = DistanceLimitedDecider(k, max_distance)
-                # decider = DistanceLimitedDecider(k, max_distance, 1000)
-                decider = DistanceLimitedDropoutDecider(k, max_distance, 
-                    half_life = 10000000,
-                    dropout_interval = 100)
-
-  )
+                # decider = CaseByCaseDecider()
+                # decider = DistanceLimitedDecider(k, max_distance),
+                # decider = DistanceLimitedDecider(k, max_distance, 1000),
+                # decider = DistanceLimitedDropoutDecider(k, max_distance, 
+                  # half_life = 10000000,
+                  # dropout_interval = 100)
+                decider = SuperPrecedentsDecider([k,k], [max_distance,    3*max_distance],)
+)
 
   experiment_loss = loss(history, judge_distribution)
 

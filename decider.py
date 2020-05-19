@@ -20,6 +20,10 @@ class Decider(ABC):
   def update(self, x, decision, set_precedent):
     pass
 
+class CaseByCaseDecider(Decider):
+
+  def apply_rule(self, x, judge_distribution):
+    return np.random.uniform() < judge_distribution(x), False
 
 class DistanceLimitedDecider(Decider):
 
@@ -132,8 +136,6 @@ class SuperPrecedentsDecider(Decider):
       # Rebuild the knn tree only after setting a precedent.
       self.knn_tree[1]= build_knn_tree(self.precedents[1], self.k[1])
     # if it's settled by superprecedents, do nothing
-
-
 
 
 def find_knn(all_cases, target_case, k):

@@ -29,30 +29,16 @@ class CaseByCaseDecider(Decider):
     return np.random.uniform() < judge_distribution(x), False
 
 
-# class AbstractDistanceLimitedDecider(Decider):
-#   @abstractmethod
-#   def get_k(self):
-#     pass 
-
-#   @abstractmethod
-#   def get_max_distance(self):
-#     pass
-
-
 class DistanceLimitedDecider(Decider):
 
   def __init__(self, k_of_self, max_distance_of_self):
+    # k_of_self is used to compute k as a function of the state of the decider.
+    # If k_of_self is a constant, wrap it in a dummy function.
     self.k_of_self = (lambda self: k_of_self) if type(k_of_self) == int else k_of_self
     self.max_distance_of_self = lambda self: max_distance_of_self if type(max_distance_of_self) == float else max_distance_of_self
     self.precedents = []
     self.outcomes = []
     self.knn_tree = None
-
-  # def get_k(self):
-  #   return self.k
-
-  # def get_max_distance(self):
-  #   return self.max_distance
 
   def apply_rule(self, x, judge_distribution):
     # print(self.k_of_self)

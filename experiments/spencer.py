@@ -7,7 +7,7 @@ from simulation import run, constant_func, scatter_cases_with_outcomes
 from simulation import uniform_sample, loss
 from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
 from decider import DistanceLimitedDropoutDecider, CaseByCaseDecider
-from decider import SuperPrecedentsDecider, DistanceLimitedHarmonicOverrulingDecider, DistanceLimitedConstantOverrulingDecider, DistanceLimitedTimedDecider
+from decider import SuperPrecedentsDecider, DistanceLimitedHarmonicOverrulingDecider, DistanceLimitedConstantOverrulingDecider, DistanceLimitedTimedDecider, DistanceLimitedThresholdMajorityDecider
 
 def main():
   d = 2 # dimension
@@ -52,10 +52,16 @@ def main():
                   # half_life = 10000000,
                   # dropout_interval = 100)
                 # decider = SuperPrecedentsDecider([k,k], [max_distance,    3*max_distance],)
-                decider = DistanceLimitedTimedDecider(
+                decider = DistanceLimitedThresholdMajorityDecider(
                     k_of_self = lambda self: math.floor(math.log(max(self.current_time, math.exp(7)))),
-                    max_distance_of_self = max_distance
+                    max_distance_of_self = max_distance,
+                    threshold_of_self = lambda self: math.sqrt(self.k_of_self(self))/4
                 )
+                # decider = DistanceLimitedTimedDecider(
+                #     k_of_self = lambda self: math.floor(math.log(max(self.current_time, math.exp(7)))),
+                #     max_distance_of_self = max_distance,
+                #     # threshold_of_self = lambda self: math.sqrt(self.k_of_self(self))/4
+                # )
 )
 
   experiment_loss = loss(history, judge_distribution)

@@ -9,6 +9,9 @@ from decider import DistanceLimitedDecider, DistanceLimitedForgetfulDecider
 
 HistoryEntry = namedtuple("HistoryEntry", ["case", "decision", "set_precedent"])
 
+HistoryEntryWithLoss = namedtuple("HistoryEntryWithLoss", ["case", "decision", "set_precedent", "loss", "nonprecedent_loss"])
+
+
 
 def uniform_sample(d, l, r):
 	# samples case uniformly from d-dimentional cube
@@ -77,13 +80,26 @@ def run(decider, judge_distribution, case_sampling_func, N):
 
 	# run the specified decision process for N
 	history = []
+	loss = 0
+	nonprecedent_loss = 0
 	for _ in range(N):
 		# sample a case 
 		x = case_sampling_func()
 		# decide it
 		decision, set_precedent = decider.decide(x, judge_distribution)
+		ground_truth = judge_distribution(x) > 0.5
+		if decision != ground_truth:
+			loss += 1
+			if not set_precedent:
+				nonprecedent_loss += 1
 		# update the history
 		# history.append((x,decision, set_precedent))
-		history.append(HistoryEntry(x, decision, set_precedent))
+		history.append(
+			HistoryEntryWithLoss(
+				case=x, 
+				decision=decision, 
+				set_precedent=set_precedent, 
+				loss=loss, 
+				nonprecedent_loss=nonprecedent_loss))
 	return history
 

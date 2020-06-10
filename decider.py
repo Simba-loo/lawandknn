@@ -1,5 +1,5 @@
 """For decision rules that maintain state"""
-from abc import ABC
+from abc import ABC, abstractmethod
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 
@@ -14,28 +14,51 @@ class Decider(ABC):
     self.update(x, decision, set_precedent)
     return decision, set_precedent
 
+  @abstractmethod
   def apply_rule(self, x, judge_distribution):
     pass
 
+  @abstractmethod
   def update(self, x, decision, set_precedent):
     pass
+
 
 class CaseByCaseDecider(Decider):
 
   def apply_rule(self, x, judge_distribution):
     return np.random.uniform() < judge_distribution(x), False
 
+
+# class AbstractDistanceLimitedDecider(Decider):
+#   @abstractmethod
+#   def get_k(self):
+#     pass 
+
+#   @abstractmethod
+#   def get_max_distance(self):
+#     pass
+
+
 class DistanceLimitedDecider(Decider):
 
-  def __init__(self, k, max_distance):
-    self.k = k
-    self.max_distance = max_distance
+  def __init__(self, k_of_self, max_distance_of_self):
+    self.k_of_self = (lambda self: k_of_self) if type(k_of_self) == int else k_of_self
+    self.max_distance_of_self = lambda self: max_distance_of_self if type(max_distance_of_self) == float else max_distance_of_self
     self.precedents = []
     self.outcomes = []
     self.knn_tree = None
 
+  # def get_k(self):
+  #   return self.k
+
+  # def get_max_distance(self):
+  #   return self.max_distance
+
   def apply_rule(self, x, judge_distribution):
-    decision, set_precedent = distance_limited_precedence(x, judge_distribution, self.precedents, self.outcomes, self.k, self.max_distance, self.knn_tree)
+    # print(self.k_of_self)
+    # print(self.k_of_self(3))
+    print(self.k_of_self(self))
+    decision, set_precedent = distance_limited_precedence(x, judge_distribution, self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree)
     return decision, set_precedent
 
   def update(self, x, decision, set_precedent):
@@ -43,7 +66,7 @@ class DistanceLimitedDecider(Decider):
       self.precedents.append(x)
       self.outcomes.append(decision)
       # Rebuild the knn tree only after setting a precedent.
-      self.knn_tree = build_knn_tree(self.precedents, self.k)
+      self.knn_tree = build_knn_tree(self.precedents, self.k_of_self(self))
 
 
 class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
@@ -60,9 +83,10 @@ class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
     # Add the latest precedent and rebuild the knn tree.
     super().update(x, decision, set_precedent)
 
+
 class DistanceLimitedTimedDecider(DistanceLimitedDecider):
-  def __init__(self, k, max_distance):
-    super().__init__(k, max_distance)
+  def __init__(self, k_of_self, max_distance_of_self):
+    super().__init__(k_of_self, max_distance_of_self)
     self.current_time = 0
     self.timestamps = []
 
@@ -71,6 +95,45 @@ class DistanceLimitedTimedDecider(DistanceLimitedDecider):
     super().update(x, decision, set_precedent)
     if set_precedent:
       self.timestamps.append(self.current_time)
+
+
+class DistanceLimitedThresholdMajorityDecider(DistanceLimitedDecider):
+  # TODO
+  def __init__(self, k, max_distance_of_self, threshold):
+    super().__init__(k, max_distance_of_self)
+    self.threshold = threshold
+
+  def apply_rule(self, x, judge_distribution):
+    return distance_limited_precedence_with_threshold(x, judge_distribution,    self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree, self.threshold)
+
+
+class DistanceLimitedOverrulingDecider(DistanceLimitedTimedDecider):
+
+  @abstractmethod
+  def probability_of_overruling(self):
+    pass 
+
+  def apply_rule(self, x, judge_distribution):
+    if np.random.uniform() < self.probability_of_overruling():
+      decision = np.random.uniform() < judge_distribution(x)
+      return decision, True 
+    else:
+      return super().apply_rule(x, judge_distribution)
+
+
+class DistanceLimitedHarmonicOverrulingDecider(DistanceLimitedOverrulingDecider):
+  def probability_of_overruling(self):
+    return 1/(self.current_time + 1)
+
+
+class DistanceLimitedConstantOverrulingDecider(DistanceLimitedOverrulingDecider):
+  def __init__(self, k, max_distance, overruling_probability):
+    super().__init__(k, max_distance)
+    self.overruling_probability = overruling_probability
+
+  def probability_of_overruling(self):
+    return self.overruling_probability
+
 
 class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
   """
@@ -88,7 +151,7 @@ class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
       self.outcomes = self.select_surviving(self.outcomes, surviving_indices)
       self.timestamps = self.select_surviving(self.timestamps, surviving_indices)
       if len(self.precedents) > 0:
-        self.knn_tree = build_knn_tree(self.precedents, self.k)
+        self.knn_tree = build_knn_tree(self.precedents, self.k_of_self(self))
     super().update(x, decision, set_precedent)
   
   def get_surviving_indices(self):
@@ -103,6 +166,7 @@ class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
     np_lst = np.asarray(lst)
     np_select = np_lst[surviving_indices]
     return list(np_select)
+
 
 class SuperPrecedentsDecider(Decider):
 
@@ -172,5 +236,32 @@ def distance_limited_precedence(x, judge_distribution, precedents, outcomes, k, 
 		# get decisions from nearest precedents
 		k_decisions = [outcomes[index] for index in indices]
 		# majority rule
-		decision = sum(k_decisions)> k/2.0
+		decision = sum(k_decisions) > k/2.0
 	return(decision, set_precedent)
+
+def distance_limited_precedence_with_threshold(
+    x, 
+    judge_distribution,
+    precedents,
+    outcomes, 
+    k,
+    max_distance,
+    knn_tree,
+    threshold = lambda k: 0):
+  judge_decision = np.random.uniform() < judge_distribution(x)
+  if len(precedents) < k:
+    return judge_decision, True
+  else: 
+    indices, k_distances = query_knn_tree(knn_tree, precedents, x, k)
+    all_k_within_max_distance = np.all(k_distances<max_distance)
+    if not all_k_within_max_distance:
+      return judge_decision, True
+    else:
+      k_decisions = [outcomes[index] for index in indices]
+      no_threshold_majority = abs(sum(k_decisions) - k/2.0) < threshold(k)
+      if no_threshold_majority:
+        return judge_decision, True
+      else:
+        return sum(k_decisions) > k/2.0, False
+    
+    

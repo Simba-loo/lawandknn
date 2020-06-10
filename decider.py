@@ -83,14 +83,13 @@ class DistanceLimitedTimedDecider(DistanceLimitedDecider):
       self.timestamps.append(self.current_time)
 
 
-class DistanceLimitedThresholdMajorityDecider(DistanceLimitedDecider):
-  # TODO
-  def __init__(self, k, max_distance_of_self, threshold):
-    super().__init__(k, max_distance_of_self)
-    self.threshold = threshold
+class DistanceLimitedThresholdMajorityDecider(DistanceLimitedTimedDecider):
+  def __init__(self, k_of_self, max_distance_of_self, threshold_of_self):
+    super().__init__(k_of_self, max_distance_of_self)
+    self.threshold_of_self = threshold_of_self
 
   def apply_rule(self, x, judge_distribution):
-    return distance_limited_precedence_with_threshold(x, judge_distribution,    self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree, self.threshold)
+    return distance_limited_precedence_with_threshold(x, judge_distribution,    self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree, self.threshold_of_self(self))
 
 
 class DistanceLimitedOverrulingDecider(DistanceLimitedTimedDecider):
@@ -233,7 +232,7 @@ def distance_limited_precedence_with_threshold(
     k,
     max_distance,
     knn_tree,
-    threshold = lambda k: 0):
+    threshold = 0):
   judge_decision = np.random.uniform() < judge_distribution(x)
   if len(precedents) < k:
     return judge_decision, True
@@ -244,7 +243,7 @@ def distance_limited_precedence_with_threshold(
       return judge_decision, True
     else:
       k_decisions = [outcomes[index] for index in indices]
-      no_threshold_majority = abs(sum(k_decisions) - k/2.0) < threshold(k)
+      no_threshold_majority = abs(sum(k_decisions) - k/2.0) < threshold
       if no_threshold_majority:
         return judge_decision, True
       else:

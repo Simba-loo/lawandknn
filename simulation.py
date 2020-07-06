@@ -36,7 +36,8 @@ def scatter_cases_with_outcomes(history):
 	# positive_cases = [e[0] for e in history if e[1]]
 	# negative_cases = [e[0] for e in history if not e[1]]
 	colors = ["green" if e.decision else "red" for e in history]
-	edgecolors = ["black" if e.set_precedent else "none" for e in history]
+	# edgecolors = ["black" if e.set_precedent == True else ("blue" if e.set_precedent == 2 else "none") for e in history]
+	edgecolors = ["black" if e.set_precedent == True else "none" for e in history]
 	plt.scatter([e.case[0] for e in history], [e.case[1] for e in history], 
 		c = colors, edgecolors=edgecolors)
 	# plt.scatter([c[0] for c in positive_cases],[c[1] for c in positive_cases],
@@ -56,7 +57,7 @@ def loss(history, judge_distribution):
 		ground_truth = judge_distribution(x)>0.5
 		if decision!=ground_truth:
 			total_loss+=1
-	average_loss = total_loss*1.0/len(history)
+	average_loss = total_loss*1.0/len(history) if len(history) > 0 else "undefined"
 	return(average_loss)
 
 def run(decider, judge_distribution, case_sampling_func, N):

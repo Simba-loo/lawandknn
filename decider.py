@@ -26,7 +26,10 @@ class Decider(ABC):
 class CaseByCaseDecider(Decider):
 
   def apply_rule(self, x, judge_distribution):
-    return np.random.uniform() < judge_distribution(x), False
+    return np.random.uniform() < judge_distribution(x), True
+
+  def update(self, x, decision, set_precedent):
+    pass
 
 
 class DistanceLimitedDecider(Decider):
@@ -43,7 +46,6 @@ class DistanceLimitedDecider(Decider):
   def apply_rule(self, x, judge_distribution):
     # print(self.k_of_self)
     # print(self.k_of_self(3))
-    print(self.k_of_self(self))
     decision, set_precedent = distance_limited_precedence(x, judge_distribution, self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree)
     return decision, set_precedent
 
@@ -57,8 +59,8 @@ class DistanceLimitedDecider(Decider):
 
 class DistanceLimitedForgetfulDecider(DistanceLimitedDecider):
   
-  def __init__(self, k, max_distance, horizon):
-    super().__init__(k, max_distance)
+  def __init__(self, k_of_self, max_distance_of_self, horizon):
+    super().__init__(k_of_self, max_distance_of_self)
     self.horizon = horizon
 
   def update(self, x, decision, set_precedent):
@@ -86,7 +88,7 @@ class DistanceLimitedTimedDecider(DistanceLimitedDecider):
 class DistanceLimitedThresholdMajorityDecider(DistanceLimitedTimedDecider):
   def __init__(self, k_of_self, max_distance_of_self, threshold_of_self):
     super().__init__(k_of_self, max_distance_of_self)
-    self.threshold_of_self = threshold_of_self
+    self.threshold_of_self = lambda self: threshold_of_self if type(threshold_of_self) == int else threshold_of_self
 
   def apply_rule(self, x, judge_distribution):
     return distance_limited_precedence_with_threshold(x, judge_distribution,    self.precedents, self.outcomes, self.k_of_self(self), self.max_distance_of_self(self), self.knn_tree, self.threshold_of_self(self))
@@ -112,8 +114,8 @@ class DistanceLimitedHarmonicOverrulingDecider(DistanceLimitedOverrulingDecider)
 
 
 class DistanceLimitedConstantOverrulingDecider(DistanceLimitedOverrulingDecider):
-  def __init__(self, k, max_distance, overruling_probability):
-    super().__init__(k, max_distance)
+  def __init__(self, k_of_self, max_distance_of_self, overruling_probability):
+    super().__init__(k_of_self, max_distance_of_self)
     self.overruling_probability = overruling_probability
 
   def probability_of_overruling(self):
@@ -124,8 +126,8 @@ class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
   """
   Old precedents disappear randomly with a half life of half_life.
   """
-  def __init__(self, k, max_distance, half_life, dropout_interval):
-    super().__init__(k, max_distance)
+  def __init__(self, k_of_self, max_distance_of_self, half_life,  dropout_interval):
+    super().__init__(k_of_self, max_distance_of_self)
     self.half_life = half_life
     self.dropout_interval = dropout_interval
 
@@ -151,7 +153,6 @@ class DistanceLimitedDropoutDecider(DistanceLimitedTimedDecider):
     np_lst = np.asarray(lst)
     np_select = np_lst[surviving_indices]
     return list(np_select)
-
 
 class SuperPrecedentsDecider(Decider):
 

@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook
 
 class GuessQueryProblem:
@@ -20,6 +21,7 @@ class GuessQueryProblem:
     self.discretization = None
     self.expected_value_function = None
     self.action_function = None
+    self._optimal_actions = None
 
   def solve(self):
     self.discretization = np.linspace(0, 1, self.N)
@@ -45,7 +47,7 @@ class GuessQueryProblem:
       reward = self.guess_correct_reward
     else:
       prob_right_if_x_unknown = max(x, m - x) / m
-      reward = self.guess_correct_reward if x >= m else self.guess_correct_reward * prob_right_if_x_unknown + self.guess_wrong_cost * (1 - prob_right_if_x_unknown)
+      reward = self.guess_correct_reward if x >= m else self.guess_correct_reward * prob_right_if_x_unknown - self.guess_wrong_cost * (1 - prob_right_if_x_unknown)
     # If x is not in the unknown region (points less than m), we guess correctly.
     # Otherwise, we get it right with probability equal to the ratio of the bigger half of the unknown region to the whole unknown region.
 
@@ -83,6 +85,32 @@ class GuessQueryProblem:
       #   print(value_of_opt_action)
       value += (1 / self.N) * value_of_opt_action
     return value 
+
+  def optimal_actions(self):
+    if self._optimal_actions == None:
+      self._optimal_actions = np.argmax(self.action_function, axis = 0)
+    return self._optimal_actions
+
+  def optimal_actions_at_state_index(self, m_index):
+    return self.optimal_actions()[m_index]
+
+  def start_querying_indices(self):
+    return np.argmax(self.optimal_actions() == 0, axis = 1)
+
+  def always_guess_index(self):
+    return np.argmax(self.start_querying_indices() > 0)
+
+  def plot(self, curve, a_slice):
+    plt.plot(self.discretization[a_slice], curve[a_slice])
+
+  def p_of_i(self, index):
+    return self.discretization[index]
+
+
+
+
+
+    
 
 
 

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook
+from scipy.optimize import curve_fit
 
 class GuessQueryProblem:
 
@@ -22,6 +23,11 @@ class GuessQueryProblem:
     self.expected_value_function = None
     self.action_function = None
     self._optimal_actions = None
+    self._scale = None
+    self._squash = None
+
+    self.QUERY = 0
+    self.GUESS = 1
 
   def solve(self):
     self.discretization = np.linspace(0, 1, self.N)
@@ -38,6 +44,10 @@ class GuessQueryProblem:
       value = self.average_max_value(m_index)
       abs_error = abs(value - self.expected_value_function[m_index])
       self.expected_value_function[m_index] = value
+    
+    # on final iteration, want to see what the calculation was
+    # if m_index == 50:
+    #   self.average_max_value(m_index, print_info=True)
 
   def guess_value(self, m_index, x_index):
     m = self.discretization[m_index]
@@ -73,7 +83,10 @@ class GuessQueryProblem:
       assert x_index < m_index 
       return -self.query_cost + self.discount_factor * ((x/m) * self.expected_value_function[x_index] + ((m - x)/m) * self.expected_value_function[m_index - x_index])
 
-  def average_max_value(self, m_index):
+  def average_max_value(self, m_index, print_info=False):
+    # for print_info
+    opt = self.GUESS
+
     value = 0
     for x_index in range(self.N):
       q = self.query_value(m_index, x_index)
@@ -81,13 +94,22 @@ class GuessQueryProblem:
       g = self.guess_value(m_index, x_index)
       self.action_function[1, m_index, x_index] = g
       value_of_opt_action = max(q, g)
+      
+      if print_info:
+        print("index: " + str(x_index))
+        if q > g:
+          if opt == self.QUERY:
+            print("index")
+            print("OPT = query")
+        else:
+          print("OPT = guess")
       # if m_index == 0:
       #   print(value_of_opt_action)
       value += (1 / self.N) * value_of_opt_action
     return value 
 
   def optimal_actions(self):
-    if self._optimal_actions == None:
+    if self._optimal_actions is None:
       self._optimal_actions = np.argmax(self.action_function, axis = 0)
     return self._optimal_actions
 
@@ -100,11 +122,56 @@ class GuessQueryProblem:
   def always_guess_index(self):
     return np.argmax(self.start_querying_indices() > 0)
 
+  def always_guess_point(self):
+    return self.p_of_i(self.always_guess_index())
+
   def plot(self, curve, a_slice):
     plt.plot(self.discretization[a_slice], curve[a_slice])
 
   def p_of_i(self, index):
     return self.discretization[index]
+
+  def omniscient_value(self):
+    return 1 / (1 - self.discount_factor)
+
+  def always_guess_index_value(self):
+    return 1 / (1 - self.discount_factor) * \
+        (1 - self.p_of_i(self.always_guess_index())/4)
+
+  def scale(self):
+    if self._scale is None:
+      self.fit_log_section_of_ev_function()
+    return self._scale 
+
+  def squash(self):
+    if self._squash is None:
+      self.fit_log_section_of_ev_function()
+    return self._squash
+
+  def fit_log_section_of_ev_function(self):
+    agi = self.always_guess_index()
+    agp = self.always_guess_point()
+    agv = self.always_guess_index_value()
+    print(agi)
+    print(agp)
+    print(agv)
+    fit_function = lambda m, scale, squash: agv - \
+        scale * np.log(1 + squash * (m - agp))
+
+    popt, pcov = curve_fit(fit_function, 
+                           self.discretization[agi:],
+                           self.expected_value_function[agi:])
+
+    scale, squash = popt[0], popt[1]
+
+    error = np.max(self.expected_value_function[agi:] - \
+        fit_function(self.discretization[agi:], *popt))
+    print("error: " + str(error))
+    assert error < 0.01
+
+    self._scale = scale
+    self._squash = squash
+    
 
 
 
